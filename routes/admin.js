@@ -13,20 +13,53 @@ router.get('/posts', (req, res) => {
 })
 
 router.get("/categorias", (req, res) => {
-    res.render("admin/categorias")
+    Categoria.find().sort({ date: 'desc' }).lean().then((categorias) => {
+        res.render("admin/categorias", { categorias: categorias })
+    }).catch((err) => {
+        req.flash("error_msg", "Houve um erro ao buscar as categorias!")
+        res.redirect("/admin")
+    })
+})
+
+router.get("/categorias/edit/:id", (req, res) => {
+    Categoria.findOne({ _id: req.params.id }).lean().then((categoria) => {
+        res.render("admin/editCategorias", { categoria: categoria })
+    }).catch((err) => {
+        req.flash("error_msg", "Esta categoria não existe!")
+        res.redirect("/admin/categorias")
+    })
 })
 
 router.post("/categorias/nova", (req, res) => {
-    const novaCategoria = {
-        nome: req.body.nome,
-        slug: req.body.slug
+
+    var erros = []
+
+    if (!req.body.nome || typeof req.body.nome == undefined || req.body.nome == null) {
+        erros.push({ texto: "Nome invalido" })
+    }
+    if (!req.body.slug || typeof req.body.slug == undefined || req.body.nome == null) {
+        erros.push({ texto: "Slug invalido" })
+    }
+    if (req.body.nome.length < 3) {
+        erros.push({ texto: "Nome da categoria muito pequeno" })
     }
 
-    new Categoria(novaCategoria).save().then(() => {
-        console.log("Categoria salva com sucesso! ")
-    }).catch((err) => {
-        console.log("Erro ao salvar categoria: " + err)
-    })
+    if (erros.length > 0) {
+        res.render("admin/addcategorias", { erros: erros })
+    } else {
+        const novaCategoria = {
+            nome: req.body.nome,
+            slug: req.body.slug
+        }
+
+        new Categoria(novaCategoria).save().then(() => {
+            req.flash("success_msg", "Categoria criada com sucesso")
+            res.redirect("/admin/categorias")
+        }).catch((err) => {
+            req.flash("error_msg", "Houve um erro ao salvar a categoria, tente novamente!")
+            res.redirect("/admin")
+        })
+    }
 })
 
 router.get("/categorias/add", (req, res) => {
